@@ -1,12 +1,20 @@
 package com.mazlabz.akari.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -22,16 +30,46 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.random.Random
+
+/** One fibre of procedurally generated washi paper. */
+private data class Fibre(
+    val u: Float,   // position within the body oval, -1..1
+    val v: Float,
+    val len: Float, // relative length
+    val angle: Float,
+    val alpha: Float,
+    val bright: Boolean // occasional lighter fleck
+)
+
+private fun generateFibres(seed: Int = 41, count: Int = 110): List<Fibre> {
+    val rnd = Random(seed)
+    val fibres = mutableListOf<Fibre>()
+    while (fibres.size < count) {
+        val u = rnd.nextFloat() * 2f - 1f
+        val v = rnd.nextFloat() * 2f - 1f
+        if (u * u + v * v > 0.92f) continue // stay inside the oval
+        fibres.add(
+            Fibre(
+                u = u, v = v,
+                len = 0.03f + rnd.nextFloat() * 0.09f,
+                angle = rnd.nextFloat() * (Math.PI.toFloat()),
+                alpha = 0.025f + rnd.nextFloat() * 0.055f,
+                bright = rnd.nextFloat() < 0.18f
+            )
+        )
+    }
+    return fibres
+}
 
 /**
- * The Akari lantern: the day's energy envelope drawn as paper-diffused light,
- * wrapped in a zoned gauge so the number always comes with a judgment.
+ * The Akari lantern: the day's energy envelope as living, paper-diffused light.
  *
- * Ring zones (drawn faintly behind the level arc):
- *   green  = Steady  (above 40 %)
- *   amber  = Getting low (15–40 %)
- *   warm red = Rest zone (below 15 %)
- * A marker dot sits at the current level so the eye finds "where am I" instantly.
+ *  - The glow breathes like a real flame (slow 4 s pulse, gentle by design).
+ *  - Zone colour cross-fades smoothly instead of jumping when a log lands.
+ *  - A procedurally generated washi fibre texture gives the paper its grain.
+ *  - Ring zones: green = Steady, amber = Getting low, warm red = Rest zone,
+ *    with a marker dot at the current level.
  */
 @Composable
 fun Lantern(
@@ -42,9 +80,34 @@ fun Lantern(
 ) {
     val animated by animateFloatAsState(
         targetValue = level.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 900),
-        label = "lantern"
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "lanternLevel"
     )
+
+    // the flame breathes — a slow, subtle pulse, never a flicker
+    val flameTransition = rememberInfiniteTransition(label = "flame")
+    val flame by flameTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "flamePulse"
+    )
+
+    val targetZone = when {
+        animated > PacingGuide.LOW_ZONE -> Washi.Moss
+        animated > PacingGuide.REST_ZONE -> Washi.Amber
+        else -> Washi.Persimmon
+    }
+    val zoneColor by animateColorAsState(
+        targetValue = targetZone,
+        animationSpec = tween(durationMillis = 900),
+        label = "zoneColor"
+    )
+
+    val fibres = remember { generateFibres() }
 
     Box(modifier = modifier.size(size)) {
         Canvas(modifier = Modifier.size(size)) {
@@ -54,14 +117,14 @@ fun Lantern(
             val cy = h / 2f
             val r = min(w, h) / 2f
 
-            val glow = 0.15f + 0.85f * animated  // embers always remain
+            val glow = (0.15f + 0.85f * animated) * flame
 
-            // ---- outer halo: light bleeding through paper ----
+            // ---- outer halo: light bleeding through paper, breathing ----
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Washi.GlowWarm.copy(alpha = 0.55f * glow),
-                        Washi.GlowWarm.copy(alpha = 0.18f * glow),
+                        Washi.GlowWarm.copy(alpha = (0.55f * glow).coerceIn(0f, 1f)),
+                        Washi.GlowWarm.copy(alpha = (0.18f * glow).coerceIn(0f, 1f)),
                         Color.Transparent
                     ),
                     center = Offset(cx, cy),
@@ -79,8 +142,8 @@ fun Lantern(
             drawOval(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Washi.GlowCore.copy(alpha = 0.35f + 0.65f * glow),
-                        Washi.GlowWarm.copy(alpha = 0.30f + 0.45f * glow),
+                        Washi.GlowCore.copy(alpha = (0.35f + 0.65f * glow).coerceIn(0f, 1f)),
+                        Washi.GlowWarm.copy(alpha = (0.30f + 0.45f * glow).coerceIn(0f, 1f)),
                         (if (night) Washi.NightCard else Washi.Card).copy(alpha = 0.9f)
                     ),
                     center = Offset(cx, cy - bodyH * 0.08f),
@@ -90,8 +153,28 @@ fun Lantern(
                 size = Size(bodyW, bodyH)
             )
 
+            // ---- procedural washi grain: fibres and flecks ----
+            val fibreInk = if (night) Washi.NightInk else Washi.Ink
+            fibres.forEach { f ->
+                val fx = cx + f.u * bodyW / 2f
+                val fy = cy + f.v * bodyH / 2f
+                val half = f.len * r
+                val dx = cos(f.angle) * half
+                val dy = sin(f.angle) * half * 0.4f // fibres lie mostly horizontal, like laid paper
+                drawLine(
+                    color = if (f.bright)
+                        Color.White.copy(alpha = f.alpha * (0.6f + glow))
+                    else
+                        fibreInk.copy(alpha = f.alpha),
+                    start = Offset(fx - dx, fy - dy),
+                    end = Offset(fx + dx, fy + dy),
+                    strokeWidth = 1.4f,
+                    cap = StrokeCap.Round
+                )
+            }
+
             // ---- washi ribs ----
-            val ribColor = (if (night) Washi.NightInk else Washi.Ink).copy(alpha = 0.14f)
+            val ribColor = fibreInk.copy(alpha = 0.14f)
             val ribs = 7
             for (i in 1 until ribs) {
                 val t = i.toFloat() / ribs
@@ -107,18 +190,18 @@ fun Lantern(
                 )
             }
 
-            // ---- inner flame core ----
+            // ---- inner flame core, breathing with the halo ----
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.85f * glow),
-                        Washi.GlowCore.copy(alpha = 0.55f * glow),
+                        Color.White.copy(alpha = (0.85f * glow).coerceIn(0f, 1f)),
+                        Washi.GlowCore.copy(alpha = (0.55f * glow).coerceIn(0f, 1f)),
                         Color.Transparent
                     ),
                     center = Offset(cx, cy),
-                    radius = r * 0.36f
+                    radius = r * 0.36f * flame
                 ),
-                radius = r * 0.36f,
+                radius = r * 0.36f * flame,
                 center = Offset(cx, cy)
             )
 
@@ -129,7 +212,6 @@ fun Lantern(
             val stroke = Stroke(width = 9f, cap = StrokeCap.Round)
             val faint = if (night) 0.28f else 0.22f
 
-            // background zones: start at 12 o'clock, clockwise
             val restSweep = 360f * PacingGuide.REST_ZONE
             val lowSweep = 360f * (PacingGuide.LOW_ZONE - PacingGuide.REST_ZONE)
             val steadySweep = 360f * (1f - PacingGuide.LOW_ZONE)
@@ -137,12 +219,6 @@ fun Lantern(
             drawArc(Washi.Amber.copy(alpha = faint), -90f + restSweep, lowSweep, false, ringRect, ringSize, style = stroke)
             drawArc(Washi.Moss.copy(alpha = faint), -90f + restSweep + lowSweep, steadySweep, false, ringRect, ringSize, style = stroke)
 
-            // level arc in the current zone's colour
-            val zoneColor = when {
-                animated > PacingGuide.LOW_ZONE -> Washi.Moss
-                animated > PacingGuide.REST_ZONE -> Washi.Amber
-                else -> Washi.Persimmon
-            }
             drawArc(
                 color = zoneColor.copy(alpha = 0.95f),
                 startAngle = -90f,
@@ -153,7 +229,6 @@ fun Lantern(
                 style = Stroke(width = 9f, cap = StrokeCap.Round)
             )
 
-            // marker dot at the current level
             val angleRad = Math.toRadians((-90f + 360f * animated).toDouble())
             val mx = cx + ringR * cos(angleRad).toFloat()
             val my = cy + ringR * sin(angleRad).toFloat()

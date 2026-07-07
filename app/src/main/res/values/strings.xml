@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Akari</string>
+    <string name="widget_description">Her lantern at a glance — energy, guidance, one-tap rest and crash mode.</string>
 </resources>

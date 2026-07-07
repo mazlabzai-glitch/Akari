@@ -31,7 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import com.mazlabz.akari.GuideTopic
+import com.mazlabz.akari.Haptics
+import com.mazlabz.akari.LoadState
 import com.mazlabz.akari.MainViewModel
 import com.mazlabz.akari.PacingGuide
 import com.mazlabz.akari.TodayState
@@ -83,10 +87,34 @@ fun TodayScreen(
     today: TodayState,
     settings: Settings,
     health: HealthSnapshot?,
+    load: LoadState,
     onEnterCrashMode: () -> Unit
 ) {
     var sheet by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<GuideTopic?>(null) }
+    val hapticContext = LocalContext.current
+
+    // Cautionary double-pulse on crossing into the Rest zone
+    var lastZone by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(today.fraction, today.checkin?.id) {
+        if (today.checkin != null) {
+            val z = PacingGuide.zoneLabel(today.fraction)
+            if (lastZone != null && z == "Rest zone" && lastZone != "Rest zone") {
+                Haptics.caution(hapticContext)
+            }
+            lastZone = z
+        }
+    }
+
+    // Cautionary double-pulse on breaching the heart-rate pacing ceiling
+    var hrWasOver by remember { mutableStateOf(false) }
+    LaunchedEffect(health?.latestHr, settings.pacingCeiling) {
+        val ceiling = settings.pacingCeiling
+        val hr = health?.latestHr
+        val over = ceiling != null && hr != null && hr > ceiling
+        if (over && !hrWasOver) Haptics.caution(hapticContext)
+        hrWasOver = over
+    }
 
     Column(
         modifier = Modifier
@@ -155,6 +183,28 @@ fun TodayScreen(
             }
         }
 
+        if (load.spiking) {
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🌫", modifier = Modifier.width(32.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Delayed-load caution",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Washi.Persimmon
+                        )
+                        Text(
+                            "The last 3 days carried more than usual (${load.total}% spent). " +
+                                "PEM arrives late — treat today as gentler than it feels.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Washi.InkFaded
+                        )
+                    }
+                    InfoDot { info = PacingGuide.ROLLING_LOAD }
+                }
+            }
+        }
+
         health?.let { h ->
             if (h.error == null && (h.steps != null || h.sleepMinutes != null || h.restingHr != null)) {
                 SectionCard {
@@ -209,7 +259,10 @@ fun TodayScreen(
                 GentleButton(
                     "Rest", subText = "rest is an action",
                     modifier = Modifier.weight(1f),
-                    onClick = { vm.add(Entry(type = "rest")) }
+                    onClick = {
+                        vm.add(Entry(type = "rest"))
+                        Haptics.restPulse(hapticContext)
+                    }
                 )
                 GentleButton(
                     "Symptom", subText = "how it feels",

@@ -13,8 +13,8 @@ android {
         applicationId = "com.mazlabz.akari"
         minSdk = 27
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "3.0"
     }
     buildTypes {
         release {
@@ -55,4 +55,6 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+
+    implementation("androidx.glance:glance-appwidget:1.1.0")
 }

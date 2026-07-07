@@ -1,5 +1,6 @@
 package com.mazlabz.akari
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -75,6 +76,11 @@ class MainActivity : ComponentActivity() {
 
     private var healthGranted = false
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra("crash_mode", false)) vm.crashMode.value = true
+    }
+
     private fun writePending(uri: android.net.Uri) {
         val data = pendingExport ?: return
         try {
@@ -85,6 +91,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (intent?.getBooleanExtra("crash_mode", false) == true) {
+            vm.crashMode.value = true
+        }
 
         lifecycleScope.launch {
             healthGranted = vm.healthManager.hasAllPermissions()
@@ -135,6 +145,7 @@ fun AkariApp(
     var tab by remember { mutableIntStateOf(0) }
 
     val today = vm.todayState(entries)
+    val load = vm.rollingLoad(entries)
 
     if (!settings.onboarded) {
         Onboarding(onDone = { vm.saveSettings(settings.copy(onboarded = true)) })
@@ -183,10 +194,12 @@ fun AkariApp(
                     today = today,
                     settings = settings,
                     health = health,
+                    load = load,
                     onEnterCrashMode = { vm.crashMode.value = true }
                 )
                 1 -> TrendsScreen(
                     trend = vm.trend(entries),
+                    load = load,
                     triggers = vm.pemTriggers(entries),
                     symptomFreq = vm.symptomFrequency(entries)
                 )

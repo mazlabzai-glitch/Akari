@@ -21,11 +21,29 @@ Malaise (PEM) — never to do more.
 - **Manual vitals, food & meds notes, symptom log**
 - **CSV export for doctors, JSON backup/restore.** All data stays on the phone — no account, no cloud.
 
+## New in v3
+
+- **Home-screen widget (Glance)** — the lantern at a glance: energy %, zone-coloured
+  border, the current guidance line, plus one-tap **Log rest** and **Crash mode**
+  without opening the app. Low-drain: refreshes on diary writes and at most every 30 min.
+- **Haptic landscape** — a soft settling pulse when rest is logged; a distinct
+  cautionary double-pulse on entering the Rest zone or breaching the heart-rate ceiling.
+- **Guided box breathing in crash mode** — 4-4-4-4, rhythm carried by gentle vibration
+  ticks so eyes can close and the screen stay dark. Comfort measure, not therapy.
+- **Rolling 3-day energy budget** — cumulative 72-hour strain across the Bateman Horne
+  pillars (body / brain / heart) compared with her 14-day norm; a "delayed-load
+  caution" appears before the crash bill arrives, even when the morning feels fine.
+- **Living lantern** — the glow breathes like a flame, zone colours cross-fade instead
+  of jumping, and a procedurally generated washi-fibre texture gives the paper its grain.
+
+Still **no INTERNET permission** — every heuristic computes on-device.
+
 ## Tech stack
 
 - Kotlin + Jetpack Compose (Material 3, custom washi/Akari theme)
 - Room (offline diary storage)
 - Health Connect client (wearable vitals, read-only, optional)
+- Glance (home-screen widget)
 - No network access at all — the app has no INTERNET permission
 
 ## Run locally

@@ -9,6 +9,7 @@ import com.mazlabz.akari.data.Settings
 import com.mazlabz.akari.data.SettingsStore
 import com.mazlabz.akari.health.HealthConnectManager
 import com.mazlabz.akari.health.HealthSnapshot
+import com.mazlabz.akari.widget.WidgetUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,16 @@ data class DaySummary(
     val battery: Int?,
     val spent: Int,
     val pem: Boolean
+)
+
+
+data class LoadState(
+    val physical: Int,
+    val cognitive: Int,
+    val emotional: Int,
+    val total: Int,
+    val baseline: Float,
+    val spiking: Boolean
 )
 
 data class TodayState(
@@ -126,12 +137,54 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return counts.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value }
     }
 
-    fun add(entry: Entry) = viewModelScope.launch { dao.insert(entry) }
-    fun delete(id: Long) = viewModelScope.launch { dao.delete(id) }
+
+    /**
+     * Rolling 3-day energy budget across the Bateman Horne pillars.
+     * PEM is delayed, so today's risk lives in the last 72 hours, not the last hour:
+     * we sum activity costs over 72 h (mixed effort split across pillars) and compare
+     * with the average 72-hour load over the preceding 11 days. Well above the norm
+     * (>1.35x, and meaningfully large) => a gentle "delayed load" caution.
+     */
+    fun rollingLoad(all: List<Entry>): LoadState {
+        val now = System.currentTimeMillis()
+        val h72 = 72L * 3600 * 1000
+        var phys = 0f; var cog = 0f; var emo = 0f
+        all.filter { it.type == "activity" && now - it.ts <= h72 }.forEach { a ->
+            val c = (a.cost ?: 0).toFloat()
+            when (a.kind) {
+                "physical" -> phys += c
+                "cognitive" -> cog += c
+                "emotional" -> emo += c
+                else -> { phys += c / 3f; cog += c / 3f; emo += c / 3f }
+            }
+        }
+        val total = phys + cog + emo
+        val start = now - 14L * 24 * 3600 * 1000
+        val end = now - h72
+        val past = all.filter { it.type == "activity" && it.ts in start..end }
+            .sumOf { it.cost ?: 0 }
+        val baseline = if (past > 0) past / 11f * 3f else 0f
+        val spiking = if (baseline > 0f) total > baseline * 1.35f && total >= 60f
+        else total >= 90f
+        return LoadState(phys.toInt(), cog.toInt(), emo.toInt(), total.toInt(), baseline, spiking)
+    }
+
+    fun add(entry: Entry) = viewModelScope.launch {
+        dao.insert(entry)
+        WidgetUpdater.refresh(getApplication())
+    }
+
+    fun delete(id: Long) = viewModelScope.launch {
+        dao.delete(id)
+        WidgetUpdater.refresh(getApplication())
+    }
 
     fun saveSettings(s: Settings) = settingsStore.save(s)
 
-    fun eraseAll() = viewModelScope.launch { dao.clear() }
+    fun eraseAll() = viewModelScope.launch {
+        dao.clear()
+        WidgetUpdater.refresh(getApplication())
+    }
 
     fun refreshHealth() = viewModelScope.launch {
         healthSnapshot.value = healthManager.todaySnapshot()

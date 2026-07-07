@@ -82,5 +82,30 @@ object PacingGuide {
         source = "Emerge Australia (\"Stop. Rest. Pace.\"); CDC ME/CFS management"
     )
 
-    val ALL = listOf(ENVELOPE, PEM, HEART_RATE, EFFORT_TYPES, ZONES)
+
+    val ROLLING_LOAD = GuideTopic(
+        title = "Why a caution can appear on a good morning",
+        body = "PEM often follows cumulative over-exertion, not a single event — and it " +
+            "arrives 12–48 hours late. Akari adds up the energy spent across the last " +
+            "72 hours (body, brain and heart together) and compares it with your usual " +
+            "level. When the 3-day load runs well above your norm, a caution appears " +
+            "even if this morning feels fine: the bill for a busy stretch may simply " +
+            "not have arrived yet. Treating a flagged day as gentler than it feels is " +
+            "pre-emptive rest — resting before symptoms force it, one of the " +
+            "best-evidenced pacing habits.",
+        source = "NICE NG206 (2021) on delayed PEM; Bateman Horne Center; Emerge Australia"
+    )
+
+    val BREATHING = GuideTopic(
+        title = "Box breathing in crash mode",
+        body = "Slow, even breathing — about 4 seconds in, 4 hold, 4 out, 4 hold — is a " +
+            "simple way to support the parasympathetic (rest-and-digest) side of the " +
+            "nervous system, which is often dysregulated in ME/CFS. In crash mode the " +
+            "rhythm is carried by gentle vibration ticks, so eyes can stay closed and " +
+            "the screen dark. It is a comfort measure, not a treatment: never force " +
+            "the breath, and stop if it brings dizziness.",
+        source = "Paced-breathing / autonomic regulation research; offered as comfort, not therapy"
+    )
+
+    val ALL = listOf(ENVELOPE, PEM, HEART_RATE, EFFORT_TYPES, ZONES, ROLLING_LOAD, BREATHING)
 }

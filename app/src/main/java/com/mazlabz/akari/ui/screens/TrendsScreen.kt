@@ -1,6 +1,9 @@
 package com.mazlabz.akari.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +23,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import com.mazlabz.akari.DaySummary
+import com.mazlabz.akari.LoadState
 import com.mazlabz.akari.ui.components.SectionCard
 import com.mazlabz.akari.ui.components.SectionLabel
 import com.mazlabz.akari.ui.theme.Washi
@@ -28,6 +34,7 @@ import com.mazlabz.akari.ui.theme.Washi
 @Composable
 fun TrendsScreen(
     trend: List<DaySummary>,
+    load: LoadState,
     triggers: List<Pair<String, Int>>,
     symptomFreq: List<Pair<String, Int>>
 ) {
@@ -45,6 +52,32 @@ fun TrendsScreen(
                 LegendDot(Washi.Moss); Text("  energy set   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
                 LegendDot(Washi.Persimmon.copy(alpha = 0.7f)); Text("  energy used   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
                 LegendDot(Washi.Night); Text("  crash day", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
+            }
+        }
+
+
+        SectionCard {
+            Text("3-day load · body, brain, heart", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Cumulative energy spent over the last 72 hours, split across the three " +
+                    "kinds of effort. PEM is delayed, so this window — not just today — " +
+                    "is where crash risk builds.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+            )
+            val maxLoad = maxOf(60, load.physical, load.cognitive, load.emotional)
+            LoadBar("Body", load.physical, maxLoad, Washi.Moss)
+            LoadBar("Brain", load.cognitive, maxLoad, Washi.Amber)
+            LoadBar("Heart", load.emotional, maxLoad, Washi.Persimmon)
+            if (load.baseline > 0f) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Total ${load.total}% · your usual 3-day load is about ${load.baseline.toInt()}%" +
+                        if (load.spiking) " — running high, plan extra rest" else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (load.spiking) Washi.Persimmon else Washi.InkFaded
+                )
             }
         }
 
@@ -98,6 +131,39 @@ fun TrendsScreen(
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun LoadBar(label: String, value: Int, max: Int, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(56.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(10.dp)
+                .background(Washi.Line, RoundedCornerShape(5.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth((value.toFloat() / max).coerceIn(0f, 1f))
+                    .height(10.dp)
+                    .background(color, RoundedCornerShape(5.dp))
+            )
+        }
+        Text(
+            " $value%",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Washi.InkFaded,
+            modifier = Modifier.width(56.dp),
+            textAlign = TextAlign.End
+        )
     }
 }
 
