@@ -23,8 +23,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
@@ -144,6 +147,8 @@ fun AkariApp(
 
     var tab by remember { mutableIntStateOf(0) }
 
+    SideEffect { Washi.night = settings.lowLight }
+
     val today = vm.todayState(entries)
     val load = vm.rollingLoad(entries)
 
@@ -170,7 +175,13 @@ fun AkariApp(
                     NavigationBarItem(
                         selected = tab == i,
                         onClick = { tab = i },
-                        icon = { Text(icon, fontSize = 20.sp) },
+                        icon = {
+                            Text(
+                                icon,
+                                fontSize = 20.sp,
+                                modifier = Modifier.semantics { contentDescription = label }
+                            )
+                        },
                         label = { Text(label) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedTextColor = Washi.Ink,
@@ -200,6 +211,7 @@ fun AkariApp(
                 1 -> TrendsScreen(
                     trend = vm.trend(entries),
                     load = load,
+                    sleep = vm.sleepInsight(entries),
                     triggers = vm.pemTriggers(entries),
                     symptomFreq = vm.symptomFrequency(entries)
                 )

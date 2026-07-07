@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazlabz.akari.GuideTopic
@@ -20,7 +22,12 @@ import com.mazlabz.akari.ui.theme.Washi
 /** Small ⓘ affordance placed next to concepts that deserve an explanation. */
 @Composable
 fun InfoDot(onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.size(width = 44.dp, height = 40.dp)) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(width = 44.dp, height = 40.dp)
+            .semantics { contentDescription = "What does this mean?" }
+    ) {
         Text("ⓘ", fontSize = 17.sp, color = Washi.InkFaded)
     }
 }

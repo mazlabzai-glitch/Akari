@@ -21,6 +21,28 @@ Malaise (PEM) — never to do more.
 - **Manual vitals, food & meds notes, symptom log**
 - **CSV export for doctors, JSON backup/restore.** All data stays on the phone — no account, no cloud.
 
+## New in v4
+
+- **Edit & backdate entries** — tap any diary entry to fix its time, cost, or kind, or
+  delete it. Includes a one-tap "crash began yesterday" flag, because PEM often only
+  declares itself overnight and trigger detection depends on honest timestamps.
+- **Personal activity costs** — "Tune costs" adjusts every preset to her reality and
+  remembers it. Her shower is not anyone else's shower.
+- **Low-light mode** — an app-wide dim, warm palette for light-sensitive days
+  (photophobia is a core ME/CFS symptom, and a bright screen is itself an energy cost).
+- **Reduce motion** — holds the lantern's flame steady for vestibular comfort.
+- **Accessibility pass** — TalkBack descriptions on icon-only controls, darker
+  secondary text for contrast on the paper background.
+- **Sleep insight** — once enough mornings are logged, Trends shows how poor sleep
+  shifts her starting battery, encouraging a lower lantern on those days.
+
+### Updating on her phone
+
+Install [Obtainium](https://github.com/ImranR98/Obtainium) once, point it at this
+repository, and it will offer each new release automatically — no manual downloads.
+Tip: Garmin and Fitbit watches can sound a native alarm at her heart-rate ceiling
+(resting + 15); set it on the watch so alerts work even with the phone away.
+
 ## New in v3
 
 - **Home-screen widget (Glance)** — the lantern at a glance: energy %, zone-coloured

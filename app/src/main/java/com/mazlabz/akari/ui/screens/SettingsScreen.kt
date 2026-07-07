@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -78,6 +79,40 @@ fun SettingsScreen(
             GentleButton("Save", Modifier.fillMaxWidth(), filled = true, onClick = {
                 onSave(settings.copy(name = name.trim(), restingHr = rhr.trim().toIntOrNull()))
             })
+        }
+
+        SectionCard {
+            Text("Comfort", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Low-light mode", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "A dim, warm palette everywhere — kind to light-sensitive eyes.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Washi.InkFaded
+                    )
+                }
+                Switch(
+                    checked = settings.lowLight,
+                    onCheckedChange = { onSave(settings.copy(lowLight = it)) }
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Reduce motion", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Holds the lantern's flame steady — for days when movement is too much.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Washi.InkFaded
+                    )
+                }
+                Switch(
+                    checked = settings.reduceMotion,
+                    onCheckedChange = { onSave(settings.copy(reduceMotion = it)) }
+                )
+            }
         }
 
         SectionCard {

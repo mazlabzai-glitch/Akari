@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ import com.mazlabz.akari.ui.components.SectionCard
 import com.mazlabz.akari.ui.components.SectionLabel
 import com.mazlabz.akari.ui.theme.Washi
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -92,6 +94,8 @@ fun TodayScreen(
 ) {
     var sheet by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<GuideTopic?>(null) }
+    var editEntry by remember { mutableStateOf<Entry?>(null) }
+    var tuneCosts by remember { mutableStateOf(false) }
     val hapticContext = LocalContext.current
 
     // Cautionary double-pulse on crossing into the Rest zone
@@ -131,7 +135,7 @@ fun TodayScreen(
         } else {
             SectionCard {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Lantern(level = today.fraction)
+                    Lantern(level = today.fraction, breathe = !settings.reduceMotion)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("${today.remaining}%", style = MaterialTheme.typography.headlineMedium)
                         InfoDot { info = PacingGuide.ZONES }
@@ -236,7 +240,7 @@ fun TodayScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MainViewModel.PRESETS.forEach { p ->
+                vm.presets(settings).forEach { p ->
                     GentleButton(
                         text = "${p.name}  −${p.cost}%",
                         onClick = {
@@ -246,11 +250,18 @@ fun TodayScreen(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            GentleButton(
-                text = "Something else…",
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { sheet = "activity" }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GentleButton(
+                    text = "Something else…",
+                    modifier = Modifier.weight(1f),
+                    onClick = { sheet = "activity" }
+                )
+                GentleButton(
+                    text = "Tune costs",
+                    modifier = Modifier.weight(1f),
+                    onClick = { tuneCosts = true }
+                )
+            }
         }
 
         SectionCard {
@@ -294,10 +305,24 @@ fun TodayScreen(
                 )
                 InfoDot { info = PacingGuide.PEM }
             }
+            TextButton(
+                onClick = {
+                    val yesterdayEve = LocalDate.now().minusDays(1).atTime(20, 0)
+                        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    vm.add(Entry(type = "pem", ts = yesterdayEve))
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "crash began yesterday? flag yesterday instead",
+                    color = Washi.InkFaded,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
 
         SectionCard {
-            SectionLabel("Today's diary")
+            SectionLabel("Today's diary · tap an entry to fix time or cost")
             if (today.entries.isEmpty()) {
                 Text(
                     "Nothing logged yet. A quiet page is fine.",
@@ -309,6 +334,7 @@ fun TodayScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { editEntry = e }
                             .padding(vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -351,6 +377,19 @@ fun TodayScreen(
     }
 
     info?.let { InfoSheet(it) { info = null } }
+
+    editEntry?.let { e ->
+        EditEntrySheet(
+            entry = e,
+            onDismiss = { editEntry = null },
+            onSave = { updated -> vm.update(updated); editEntry = null },
+            onDelete = { vm.delete(e.id); editEntry = null }
+        )
+    }
+
+    if (tuneCosts) {
+        TuneCostsSheet(vm = vm, settings = settings, onDismiss = { tuneCosts = false })
+    }
 
     when (sheet) {
         "activity" -> ActivitySheet(onDismiss = { sheet = null }) { name, cost, kind ->
@@ -551,6 +590,148 @@ private fun VitalsSheet(onDismiss: () -> Unit, onSave: (Int?, String?, Int?) -> 
                 val b = bp.trim().ifBlank { null }
                 if (h != null || s != null || b != null) onSave(h, b, s)
             })
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EditEntrySheet(
+    entry: Entry,
+    onDismiss: () -> Unit,
+    onSave: (Entry) -> Unit,
+    onDelete: () -> Unit
+) {
+    var ts by remember(entry.id) { mutableStateOf(entry.ts) }
+    var cost by remember(entry.id) { mutableIntStateOf(entry.cost ?: 15) }
+    var kind by remember(entry.id) { mutableStateOf(entry.kind ?: "mixed") }
+
+    fun at(daysBack: Long, hour: Int): Long =
+        LocalDate.now().minusDays(daysBack).atTime(hour, 0)
+            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    val whenFmt = DateTimeFormatter.ofPattern("EEE d MMM · h:mm a")
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Washi.Card) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+            Text("Edit entry", style = MaterialTheme.typography.titleLarge)
+            Text(
+                describe(entry),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            SectionLabel("When did it happen?")
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "Now" to System.currentTimeMillis(),
+                    "1 h ago" to System.currentTimeMillis() - 3_600_000L,
+                    "3 h ago" to System.currentTimeMillis() - 3L * 3_600_000L,
+                    "This morning" to at(0, 9),
+                    "Yesterday evening" to at(1, 20),
+                    "Yesterday morning" to at(1, 9)
+                ).forEach { (label, t) ->
+                    GentleButton(
+                        label,
+                        filled = kotlin.math.abs(ts - t) < 60_000L,
+                        onClick = { ts = t }
+                    )
+                }
+            }
+            Text(
+                "Set to: " + Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).format(whenFmt),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            if (entry.type == "activity") {
+                SectionLabel("Kind of effort")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GentleButton("Body", Modifier.weight(1f), filled = kind == "physical", onClick = { kind = "physical" })
+                    GentleButton("Brain", Modifier.weight(1f), filled = kind == "cognitive", onClick = { kind = "cognitive" })
+                    GentleButton("Heart", Modifier.weight(1f), filled = kind == "emotional", onClick = { kind = "emotional" })
+                }
+                SectionLabel("Energy cost")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Slider(
+                        value = cost.toFloat(),
+                        onValueChange = { cost = (it / 5).toInt() * 5 },
+                        valueRange = 5f..60f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("−$cost%", style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(80.dp))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GentleButton("Delete", Modifier.weight(1f), accent = Washi.Persimmon, onClick = onDelete)
+                GentleButton("Save", Modifier.weight(1f), filled = true, onClick = {
+                    onSave(
+                        if (entry.type == "activity") entry.copy(ts = ts, cost = cost, kind = kind)
+                        else entry.copy(ts = ts)
+                    )
+                })
+            }
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TuneCostsSheet(
+    vm: MainViewModel,
+    settings: Settings,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Washi.Card) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+        ) {
+            Text("Tune costs to her", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "These are personal — her shower is not anyone else's shower. Adjust each " +
+                    "until the lantern matches how the day actually feels.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+            )
+            MainViewModel.PRESETS.forEach { base ->
+                val current = settings.presetCosts[base.name] ?: base.cost
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp)
+                ) {
+                    Text(
+                        base.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    GentleButton("−5", onClick = {
+                        vm.setPresetCost(base.name, (current - 5).coerceAtLeast(5))
+                    })
+                    Text(
+                        "$current%",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.width(64.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    GentleButton("+5", onClick = {
+                        vm.setPresetCost(base.name, (current + 5).coerceAtMost(60))
+                    })
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            GentleButton("Done", Modifier.fillMaxWidth(), filled = true, onClick = onDismiss)
             Spacer(Modifier.height(28.dp))
         }
     }

@@ -76,7 +76,8 @@ fun Lantern(
     level: Float,
     modifier: Modifier = Modifier,
     size: Dp = 230.dp,
-    night: Boolean = false
+    night: Boolean = false,
+    breathe: Boolean = true
 ) {
     val animated by animateFloatAsState(
         targetValue = level.coerceIn(0f, 1f),
@@ -86,7 +87,7 @@ fun Lantern(
 
     // the flame breathes — a slow, subtle pulse, never a flicker
     val flameTransition = rememberInfiniteTransition(label = "flame")
-    val flame by flameTransition.animateFloat(
+    val flameRaw by flameTransition.animateFloat(
         initialValue = 0.94f,
         targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
@@ -95,6 +96,8 @@ fun Lantern(
         ),
         label = "flamePulse"
     )
+    // reduce-motion: hold the flame steady for vestibular comfort
+    val flame = if (breathe) flameRaw else 1f
 
     val targetZone = when {
         animated > PacingGuide.LOW_ZONE -> Washi.Moss

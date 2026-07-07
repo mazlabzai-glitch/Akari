@@ -35,6 +35,7 @@ import com.mazlabz.akari.ui.theme.Washi
 fun TrendsScreen(
     trend: List<DaySummary>,
     load: LoadState,
+    sleep: Pair<Int, Int>?,
     triggers: List<Pair<String, Int>>,
     symptomFreq: List<Pair<String, Int>>
 ) {
@@ -55,6 +56,21 @@ fun TrendsScreen(
             }
         }
 
+
+        sleep?.let { (poor, decent) ->
+            SectionCard {
+                Text("Sleep and the envelope", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "After poor sleep her mornings start around $poor% — after okay or good " +
+                        "sleep, around $decent%. Unrefreshing sleep is part of ME/CFS itself, " +
+                        "but on poor-sleep mornings it's worth setting the lantern lower than " +
+                        "instinct suggests.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Washi.InkFaded,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
 
         SectionCard {
             Text("3-day load · body, brain, heart", style = MaterialTheme.typography.titleLarge)

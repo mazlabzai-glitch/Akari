@@ -169,6 +169,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return LoadState(phys.toInt(), cog.toInt(), emo.toInt(), total.toInt(), baseline, spiking)
     }
 
+    /** Presets with her personal cost overrides applied. */
+    fun presets(settings: Settings): List<Preset> = PRESETS.map { p ->
+        settings.presetCosts[p.name]?.let { p.copy(cost = it) } ?: p
+    }
+
+    fun setPresetCost(name: String, cost: Int) = settingsStore.setPresetCost(name, cost)
+
+    /** Average morning battery after poor sleep vs okay/good sleep (needs 3+ of each). */
+    fun sleepInsight(all: List<Entry>): Pair<Int, Int>? {
+        val checkins = all.filter { it.type == "checkin" && it.battery != null && it.sleepQ != null }
+        val poor = checkins.filter { it.sleepQ == 1 }.mapNotNull { it.battery }
+        val decent = checkins.filter { (it.sleepQ ?: 0) >= 2 }.mapNotNull { it.battery }
+        if (poor.size < 3 || decent.size < 3) return null
+        return poor.average().toInt() to decent.average().toInt()
+    }
+
+    fun update(entry: Entry) = viewModelScope.launch {
+        dao.update(entry)
+        WidgetUpdater.refresh(getApplication())
+    }
+
     fun add(entry: Entry) = viewModelScope.launch {
         dao.insert(entry)
         WidgetUpdater.refresh(getApplication())
