@@ -16,19 +16,28 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.mazlabz.akari.PacingGuide
 import com.mazlabz.akari.ui.theme.Washi
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * The Akari lantern: her energy for the day, drawn as paper-diffused light.
- * Full battery = a warm, full glow; as energy is spent the lantern dims
- * toward embers. `level` is 0f..1f (remaining / 100).
+ * The Akari lantern: the day's energy envelope drawn as paper-diffused light,
+ * wrapped in a zoned gauge so the number always comes with a judgment.
+ *
+ * Ring zones (drawn faintly behind the level arc):
+ *   green  = Steady  (above 40 %)
+ *   amber  = Getting low (15–40 %)
+ *   warm red = Rest zone (below 15 %)
+ * A marker dot sits at the current level so the eye finds "where am I" instantly.
  */
 @Composable
 fun Lantern(
     level: Float,
     modifier: Modifier = Modifier,
-    size: Dp = 220.dp,
+    size: Dp = 230.dp,
     night: Boolean = false
 ) {
     val animated by animateFloatAsState(
@@ -45,9 +54,9 @@ fun Lantern(
             val cy = h / 2f
             val r = min(w, h) / 2f
 
-            val glow = 0.15f + 0.85f * animated  // never fully dark: embers remain
+            val glow = 0.15f + 0.85f * animated  // embers always remain
 
-            // Outer halo — light bleeding through paper
+            // ---- outer halo: light bleeding through paper ----
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -62,9 +71,9 @@ fun Lantern(
                 center = Offset(cx, cy)
             )
 
-            // Lantern body — soft vertical oval
-            val bodyW = r * 1.15f
-            val bodyH = r * 1.45f
+            // ---- lantern body ----
+            val bodyW = r * 1.08f
+            val bodyH = r * 1.38f
             val bodyTop = cy - bodyH / 2f
 
             drawOval(
@@ -81,15 +90,14 @@ fun Lantern(
                 size = Size(bodyW, bodyH)
             )
 
-            // Washi ribs — the horizontal bamboo lines of an Akari lamp
+            // ---- washi ribs ----
             val ribColor = (if (night) Washi.NightInk else Washi.Ink).copy(alpha = 0.14f)
             val ribs = 7
             for (i in 1 until ribs) {
                 val t = i.toFloat() / ribs
                 val y = bodyTop + bodyH * t
-                // width of the oval at this height (ellipse equation)
                 val dy = (y - cy) / (bodyH / 2f)
-                val halfW = bodyW / 2f * kotlin.math.sqrt((1f - dy * dy).coerceAtLeast(0f))
+                val halfW = bodyW / 2f * sqrt((1f - dy * dy).coerceAtLeast(0f))
                 drawLine(
                     color = ribColor,
                     start = Offset(cx - halfW, y),
@@ -99,7 +107,7 @@ fun Lantern(
                 )
             }
 
-            // Inner flame core
+            // ---- inner flame core ----
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -108,27 +116,49 @@ fun Lantern(
                         Color.Transparent
                     ),
                     center = Offset(cx, cy),
-                    radius = r * 0.38f
+                    radius = r * 0.36f
                 ),
-                radius = r * 0.38f,
+                radius = r * 0.36f,
                 center = Offset(cx, cy)
             )
 
-            // Level ring — a thin arc tracing remaining energy
-            val ringColor = when {
-                animated > 0.4f -> Washi.Moss
-                animated > 0.15f -> Washi.Amber
+            // ---- zoned gauge ring ----
+            val ringR = r * 0.97f
+            val ringRect = Offset(cx - ringR, cy - ringR)
+            val ringSize = Size(ringR * 2f, ringR * 2f)
+            val stroke = Stroke(width = 9f, cap = StrokeCap.Round)
+            val faint = if (night) 0.28f else 0.22f
+
+            // background zones: start at 12 o'clock, clockwise
+            val restSweep = 360f * PacingGuide.REST_ZONE
+            val lowSweep = 360f * (PacingGuide.LOW_ZONE - PacingGuide.REST_ZONE)
+            val steadySweep = 360f * (1f - PacingGuide.LOW_ZONE)
+            drawArc(Washi.Persimmon.copy(alpha = faint), -90f, restSweep, false, ringRect, ringSize, style = stroke)
+            drawArc(Washi.Amber.copy(alpha = faint), -90f + restSweep, lowSweep, false, ringRect, ringSize, style = stroke)
+            drawArc(Washi.Moss.copy(alpha = faint), -90f + restSweep + lowSweep, steadySweep, false, ringRect, ringSize, style = stroke)
+
+            // level arc in the current zone's colour
+            val zoneColor = when {
+                animated > PacingGuide.LOW_ZONE -> Washi.Moss
+                animated > PacingGuide.REST_ZONE -> Washi.Amber
                 else -> Washi.Persimmon
             }
             drawArc(
-                color = ringColor.copy(alpha = 0.9f),
+                color = zoneColor.copy(alpha = 0.95f),
                 startAngle = -90f,
                 sweepAngle = 360f * animated,
                 useCenter = false,
-                topLeft = Offset(cx - r * 0.98f, cy - r * 0.98f),
-                size = Size(r * 1.96f, r * 1.96f),
-                style = Stroke(width = 7f, cap = StrokeCap.Round)
+                topLeft = ringRect,
+                size = ringSize,
+                style = Stroke(width = 9f, cap = StrokeCap.Round)
             )
+
+            // marker dot at the current level
+            val angleRad = Math.toRadians((-90f + 360f * animated).toDouble())
+            val mx = cx + ringR * cos(angleRad).toFloat()
+            val my = cy + ringR * sin(angleRad).toFloat()
+            drawCircle(color = if (night) Washi.NightInk else Washi.Card, radius = 13f, center = Offset(mx, my))
+            drawCircle(color = zoneColor, radius = 9f, center = Offset(mx, my))
         }
     }
 }

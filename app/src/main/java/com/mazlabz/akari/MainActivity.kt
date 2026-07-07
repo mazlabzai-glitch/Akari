@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import com.mazlabz.akari.data.Entry
 import com.mazlabz.akari.export.Exporter
 import com.mazlabz.akari.ui.screens.CrashScreen
+import com.mazlabz.akari.ui.screens.Onboarding
 import com.mazlabz.akari.ui.screens.SettingsScreen
 import com.mazlabz.akari.ui.screens.TodayScreen
 import com.mazlabz.akari.ui.screens.TrendsScreen
@@ -135,6 +136,11 @@ fun AkariApp(
 
     val today = vm.todayState(entries)
 
+    if (!settings.onboarded) {
+        Onboarding(onDone = { vm.saveSettings(settings.copy(onboarded = true)) })
+        return
+    }
+
     if (crashMode) {
         CrashScreen(
             remainingFraction = today.fraction,
@@ -190,6 +196,7 @@ fun AkariApp(
                     healthPermissionsGranted = healthGranted(),
                     onSave = { vm.saveSettings(it) },
                     onRequestHealthPermissions = onRequestHealthPermissions,
+                    onReplayIntro = { vm.saveSettings(settings.copy(onboarded = false)) },
                     onExportCsv = onExportCsv,
                     onExportJson = onExportJson,
                     onImport = onImport,

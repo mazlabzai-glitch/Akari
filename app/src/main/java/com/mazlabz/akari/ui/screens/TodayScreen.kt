@@ -29,13 +29,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mazlabz.akari.GuideTopic
 import com.mazlabz.akari.MainViewModel
+import com.mazlabz.akari.PacingGuide
 import com.mazlabz.akari.TodayState
 import com.mazlabz.akari.data.Entry
 import com.mazlabz.akari.data.Settings
 import com.mazlabz.akari.health.HealthSnapshot
 import com.mazlabz.akari.ui.components.GentleButton
+import com.mazlabz.akari.ui.components.InfoDot
+import com.mazlabz.akari.ui.components.InfoSheet
 import com.mazlabz.akari.ui.components.Lantern
 import com.mazlabz.akari.ui.components.SectionCard
 import com.mazlabz.akari.ui.components.SectionLabel
@@ -47,27 +52,27 @@ import java.time.format.DateTimeFormatter
 private val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
 
 private fun entryIcon(type: String) = when (type) {
-    "checkin" -> "🏮"   // lantern
+    "checkin" -> "🏮"
     "activity" -> "⚡"
-    "rest" -> "🍃"      // leaf
-    "symptom" -> "🌡"   // thermometer
-    "food" -> "🍵"      // tea
+    "rest" -> "🍃"
+    "symptom" -> "🌡"
+    "food" -> "🍵"
     "vitals" -> "💓"
-    "pem" -> "🌙"       // moon
+    "pem" -> "🌙"
     else -> "•"
 }
 
 private fun describe(e: Entry): String = when (e.type) {
-    "checkin" -> "Morning intention: ${e.battery}%" +
+    "checkin" -> "Morning check-in: ${e.battery}% energy" +
         (e.sleepQ?.let { " · sleep " + listOf("", "poor", "okay", "good")[it] } ?: "")
-    "activity" -> "${e.name} · −${e.cost}% (${e.kind})"
-    "rest" -> "Restorative rest"
+    "activity" -> "${e.name} · used ${e.cost}% (${e.kind})"
+    "rest" -> "Rest — logged as an action, because it is one"
     "symptom" -> "${e.name} · " + listOf("", "mild", "moderate", "severe")[e.sev ?: 2]
     "food" -> e.text ?: ""
     "vitals" -> listOfNotNull(
         e.hr?.let { "HR $it" }, e.bp?.let { "BP $it" }, e.spo2?.let { "SpO2 $it%" }
     ).joinToString(" · ")
-    "pem" -> "Crash / PEM — rest is the practice now"
+    "pem" -> "Crash / PEM flagged — the app is learning from this"
     else -> e.type
 }
 
@@ -81,6 +86,7 @@ fun TodayScreen(
     onEnterCrashMode: () -> Unit
 ) {
     var sheet by remember { mutableStateOf<String?>(null) }
+    var info by remember { mutableStateOf<GuideTopic?>(null) }
 
     Column(
         modifier = Modifier
@@ -88,43 +94,62 @@ fun TodayScreen(
             .padding(bottom = 24.dp)
     ) {
         if (today.checkin == null) {
-            CheckinCard(onSave = { battery, sleepQ ->
-                vm.add(Entry(type = "checkin", battery = battery, sleepQ = sleepQ))
-            })
+            CheckinCard(
+                onInfo = { info = PacingGuide.ENVELOPE },
+                onSave = { battery, sleepQ ->
+                    vm.add(Entry(type = "checkin", battery = battery, sleepQ = sleepQ))
+                }
+            )
         } else {
             SectionCard {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Lantern(level = today.fraction)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${today.remaining}%", style = MaterialTheme.typography.headlineMedium)
+                        InfoDot { info = PacingGuide.ZONES }
+                    }
+                    val zone = PacingGuide.zoneLabel(today.fraction)
                     Text(
-                        "${today.remaining}%",
-                        style = MaterialTheme.typography.headlineMedium
+                        zone,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = when (zone) {
+                            "Steady" -> Washi.Moss
+                            "Getting low" -> Washi.Amber
+                            else -> Washi.Persimmon
+                        }
                     )
+                    Spacer(Modifier.height(4.dp))
+                    // Guidance strip: always answers "what should I do now?"
                     Text(
-                        "light remaining today",
+                        PacingGuide.guidance(today.fraction),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Started at ${today.checkin.battery}% · used ${today.spent}%",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Washi.InkFaded
                     )
-                    Spacer(Modifier.height(6.dp))
-                    val note = if (today.remaining <= 15)
-                        "The lantern is low. Rest now beats PEM later."
-                    else
-                        "Began at ${today.checkin.battery}% · spent ${today.spent}%"
-                    Text(note, style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
                     settings.pacingCeiling?.let { ceiling ->
                         Spacer(Modifier.height(8.dp))
                         HorizontalDivider(color = Washi.Line)
                         Spacer(Modifier.height(8.dp))
                         val hrNow = health?.latestHr
                         val over = hrNow != null && hrNow > ceiling
-                        Text(
-                            if (hrNow != null)
-                                "Heart rate $hrNow · ceiling $ceiling bpm" +
-                                    (if (over) " — above your edge, time to rest" else "")
-                            else
-                                "Pacing ceiling: $ceiling bpm — above it, stop and rest",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (over) Washi.Persimmon else Washi.InkFaded
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (hrNow != null)
+                                    "Heart rate $hrNow · ceiling $ceiling bpm" +
+                                        (if (over) " — above the threshold, stop and rest" else "")
+                                else
+                                    "Heart-rate ceiling: $ceiling bpm — above it, stop and rest",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (over) Washi.Persimmon else Washi.InkFaded,
+                                modifier = Modifier.weight(1f)
+                            )
+                            InfoDot { info = PacingGuide.HEART_RATE }
+                        }
                     }
                 }
             }
@@ -145,7 +170,18 @@ fun TodayScreen(
         }
 
         SectionCard {
-            SectionLabel("Spend a little light")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Log an activity", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "each one spends some of today's light",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Washi.InkFaded
+                    )
+                }
+                InfoDot { info = PacingGuide.EFFORT_TYPES }
+            }
+            Spacer(Modifier.height(10.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -171,7 +207,7 @@ fun TodayScreen(
             SectionLabel("Quick log")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GentleButton(
-                    "Rest", subText = "savasana counts",
+                    "Rest", subText = "rest is an action",
                     modifier = Modifier.weight(1f),
                     onClick = { vm.add(Entry(type = "rest")) }
                 )
@@ -195,13 +231,16 @@ fun TodayScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            GentleButton(
-                "I'm crashing (PEM)",
-                subText = "one tap — it helps find triggers",
-                modifier = Modifier.fillMaxWidth(),
-                accent = Washi.Persimmon,
-                onClick = { vm.add(Entry(type = "pem")) }
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                GentleButton(
+                    "I'm crashing (PEM)",
+                    subText = "one tap now helps find your triggers",
+                    modifier = Modifier.weight(1f),
+                    accent = Washi.Persimmon,
+                    onClick = { vm.add(Entry(type = "pem")) }
+                )
+                InfoDot { info = PacingGuide.PEM }
+            }
         }
 
         SectionCard {
@@ -240,7 +279,7 @@ fun TodayScreen(
 
         Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
             GentleButton(
-                "Turn the lantern down — crash mode",
+                "Crash mode — big buttons, low light",
                 modifier = Modifier.fillMaxWidth(),
                 accent = Washi.Night,
                 filled = true,
@@ -254,9 +293,11 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
+
+    info?.let { InfoSheet(it) { info = null } }
 
     when (sheet) {
         "activity" -> ActivitySheet(onDismiss = { sheet = null }) { name, cost, kind ->
@@ -274,27 +315,32 @@ fun TodayScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CheckinCard(onSave: (Int, Int?) -> Unit) {
+private fun CheckinCard(onInfo: () -> Unit, onSave: (Int, Int?) -> Unit) {
     var battery by remember { mutableIntStateOf(55) }
     var sleepQ by remember { mutableStateOf<Int?>(null) }
 
     SectionCard {
-        Text("Morning intention", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "How bright is the lantern today?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Washi.InkFaded,
-            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Morning check-in", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "How much energy does today hold? Go by how you feel — not by what's planned.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Washi.InkFaded,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            InfoDot(onClick = onInfo)
+        }
+        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GentleButton("Low", modifier = Modifier.weight(1f), accent = Washi.Persimmon,
-                filled = battery == 30, onClick = { battery = 30 })
-            GentleButton("So-so", modifier = Modifier.weight(1f), accent = Washi.Amber,
-                filled = battery == 55, onClick = { battery = 55 })
-            GentleButton("Okay", modifier = Modifier.weight(1f), accent = Washi.Moss,
-                filled = battery == 80, onClick = { battery = 80 })
+            GentleButton("Low", subText = "rough day", modifier = Modifier.weight(1f),
+                accent = Washi.Persimmon, filled = battery == 30, onClick = { battery = 30 })
+            GentleButton("So-so", subText = "middling", modifier = Modifier.weight(1f),
+                accent = Washi.Amber, filled = battery == 55, onClick = { battery = 55 })
+            GentleButton("Okay", subText = "gentler day", modifier = Modifier.weight(1f),
+                accent = Washi.Moss, filled = battery == 80, onClick = { battery = 80 })
         }
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -308,7 +354,7 @@ private fun CheckinCard(onSave: (Int, Int?) -> Unit) {
                 "$battery%",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.width(72.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.End
+                textAlign = TextAlign.End
             )
         }
         SectionLabel("Sleep last night")
@@ -319,7 +365,7 @@ private fun CheckinCard(onSave: (Int, Int?) -> Unit) {
         }
         Spacer(Modifier.height(14.dp))
         GentleButton(
-            "Light the lantern",
+            "Set today's energy",
             modifier = Modifier.fillMaxWidth(),
             filled = true,
             onClick = { onSave(battery, sleepQ) }
@@ -349,7 +395,7 @@ private fun ActivitySheet(onDismiss: () -> Unit, onSave: (String, Int, String) -
                 GentleButton("Brain", Modifier.weight(1f), filled = kind == "cognitive", onClick = { kind = "cognitive" })
                 GentleButton("Heart", Modifier.weight(1f), filled = kind == "emotional", onClick = { kind = "emotional" })
             }
-            SectionLabel("Energy cost")
+            SectionLabel("How much of today's energy did it take?")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Slider(
                     value = cost.toFloat(),

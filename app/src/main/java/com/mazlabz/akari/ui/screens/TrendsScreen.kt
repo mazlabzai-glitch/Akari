@@ -42,8 +42,8 @@ fun TrendsScreen(
             TrendChart(trend)
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LegendDot(Washi.Moss); Text("  morning light   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
-                LegendDot(Washi.Persimmon.copy(alpha = 0.7f)); Text("  spent   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
+                LegendDot(Washi.Moss); Text("  energy set   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
+                LegendDot(Washi.Persimmon.copy(alpha = 0.7f)); Text("  energy used   ", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
                 LegendDot(Washi.Night); Text("  crash day", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
             }
         }

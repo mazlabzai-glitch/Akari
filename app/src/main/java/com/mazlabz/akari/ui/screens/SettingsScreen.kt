@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mazlabz.akari.PacingGuide
 import com.mazlabz.akari.data.Settings
 import com.mazlabz.akari.health.HealthConnectManager
 import com.mazlabz.akari.ui.components.GentleButton
@@ -38,6 +39,7 @@ fun SettingsScreen(
     healthPermissionsGranted: Boolean,
     onSave: (Settings) -> Unit,
     onRequestHealthPermissions: () -> Unit,
+    onReplayIntro: () -> Unit,
     onExportCsv: () -> Unit,
     onExportJson: () -> Unit,
     onImport: () -> Unit,
@@ -69,12 +71,12 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = rhr, onValueChange = { rhr = it },
                 label = { Text("Resting heart rate (bpm)") },
-                supportingText = { Text("Sets a pacing ceiling of resting + 15 — the heart-rate pacing heuristic") },
+                supportingText = { Text("Measure on waking before getting up, 7 mornings, average them. Ceiling = resting + 15 (Workwell Foundation)") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
             GentleButton("Save", Modifier.fillMaxWidth(), filled = true, onClick = {
-                onSave(Settings(name = name.trim(), restingHr = rhr.trim().toIntOrNull()))
+                onSave(settings.copy(name = name.trim(), restingHr = rhr.trim().toIntOrNull()))
             })
         }
 
@@ -119,6 +121,27 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(8.dp))
             GentleButton("Restore from backup", Modifier.fillMaxWidth(), onClick = onImport)
+        }
+
+
+        SectionCard {
+            Text("About pacing — the science", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            PacingGuide.ALL.forEach { t ->
+                Text(t.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    t.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 2.dp)
+                )
+                Text(
+                    "Source: " + t.source,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Washi.InkFaded,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
+            GentleButton("Replay the introduction", Modifier.fillMaxWidth(), onClick = onReplayIntro)
         }
 
         SectionCard {
