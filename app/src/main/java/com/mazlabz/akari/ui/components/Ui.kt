@@ -1,13 +1,20 @@
 package com.mazlabz.akari.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +36,7 @@ fun SectionCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Washi.Card),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = MaterialTheme.shapes.medium
@@ -46,6 +53,35 @@ fun SectionLabel(text: String) {
         color = Washi.InkFaded,
         modifier = Modifier.padding(bottom = 10.dp)
     )
+}
+
+/** The single primary header for a card — one consistent level across every screen. */
+@Composable
+fun CardTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleLarge)
+}
+
+/** The current pacing zone as a readable pill: accent dot, tint fill, deep-accent text. */
+@Composable
+fun ZoneChip(zone: String) {
+    val fg: Color
+    val bg: Color
+    val dot: Color
+    when (zone) {
+        "Steady" -> { fg = Washi.MossText; bg = Washi.MossTint; dot = Washi.Moss }
+        "Getting low" -> { fg = Washi.AmberText; bg = Washi.AmberTint; dot = Washi.Amber }
+        else -> { fg = Washi.PersimmonText; bg = Washi.PersimmonTint; dot = Washi.Persimmon }
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(bg, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 5.dp)
+    ) {
+        Box(modifier = Modifier.size(7.dp).background(dot, CircleShape))
+        Spacer(Modifier.width(7.dp))
+        Text(zone, style = MaterialTheme.typography.titleMedium, color = fg)
+    }
 }
 
 /** A soft, large-tap-target button used across the app. */

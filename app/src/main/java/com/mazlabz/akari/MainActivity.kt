@@ -9,6 +9,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,6 +35,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
 import com.mazlabz.akari.data.Entry
 import com.mazlabz.akari.export.Exporter
+import com.mazlabz.akari.ui.components.AkariIcons
 import com.mazlabz.akari.ui.screens.CrashScreen
 import com.mazlabz.akari.ui.screens.Onboarding
 import com.mazlabz.akari.ui.screens.SettingsScreen
@@ -170,20 +173,26 @@ fun AkariApp(
         containerColor = Washi.Paper,
         bottomBar = {
             NavigationBar(containerColor = Washi.Card) {
-                val items = listOf("Today" to "🏮", "Trends" to "🌊", "Settings" to "🪷")
-                items.forEachIndexed { i, (label, icon) ->
+                val items = listOf(
+                    Triple("Today", AkariIcons.Today, 0),
+                    Triple("Trends", AkariIcons.Trends, 1),
+                    Triple("Settings", AkariIcons.Settings, 2)
+                )
+                items.forEach { (label, icon, i) ->
                     NavigationBarItem(
                         selected = tab == i,
                         onClick = { tab = i },
                         icon = {
-                            Text(
+                            Icon(
                                 icon,
-                                fontSize = 20.sp,
-                                modifier = Modifier.semantics { contentDescription = label }
+                                contentDescription = label,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         label = { Text(label) },
                         colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Washi.Ink,
+                            unselectedIconColor = Washi.InkFaded,
                             selectedTextColor = Washi.Ink,
                             unselectedTextColor = Washi.InkFaded,
                             indicatorColor = Washi.Paper

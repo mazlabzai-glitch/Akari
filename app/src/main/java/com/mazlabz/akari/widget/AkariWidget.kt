@@ -5,8 +5,11 @@ import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -26,6 +29,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -33,6 +37,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.mazlabz.akari.MainActivity
 import com.mazlabz.akari.PacingGuide
+import com.mazlabz.akari.R
 import com.mazlabz.akari.data.AkariDatabase
 import com.mazlabz.akari.data.Entry
 import java.time.Instant
@@ -43,7 +48,7 @@ import java.time.ZoneId
 private val WPaper = Color(0xFFF6F2EA)
 private val WCard = Color(0xFFFDFBF6)
 private val WInk = Color(0xFF3B3A36)
-private val WInkFaded = Color(0xFF8D887E)
+private val WInkFaded = Color(0xFF6E6A61)
 private val WMoss = Color(0xFF7C9A77)
 private val WAmber = Color(0xFFD9A441)
 private val WPersimmon = Color(0xFFC97B5D)
@@ -159,9 +164,11 @@ private fun WidgetContent(state: WidgetState) {
                 modifier = GlanceModifier.fillMaxWidth().clickable(actionRunCallback<OpenAppAction>()),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🏮",
-                    style = TextStyle(fontSize = 22.sp)
+                Image(
+                    provider = ImageProvider(R.drawable.ic_lantern),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(ColorProvider(zoneColor)),
+                    modifier = GlanceModifier.size(22.dp)
                 )
                 Spacer(GlanceModifier.width(8.dp))
                 Column {
@@ -194,10 +201,19 @@ private fun WidgetContent(state: WidgetState) {
                         .clickable(actionRunCallback<LogRestAction>()),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "🍃 Log rest",
-                        style = TextStyle(color = ColorProvider(WInk), fontSize = 14.sp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_leaf),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(ColorProvider(WInk)),
+                            modifier = GlanceModifier.size(16.dp)
+                        )
+                        Spacer(GlanceModifier.width(6.dp))
+                        Text(
+                            "Log rest",
+                            style = TextStyle(color = ColorProvider(WInk), fontSize = 14.sp)
+                        )
+                    }
                 }
                 Spacer(GlanceModifier.width(8.dp))
                 Box(
@@ -209,10 +225,19 @@ private fun WidgetContent(state: WidgetState) {
                         .clickable(actionRunCallback<OpenCrashAction>()),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "🌙 Crash mode",
-                        style = TextStyle(color = ColorProvider(WNightInk), fontSize = 14.sp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_moon),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(ColorProvider(WNightInk)),
+                            modifier = GlanceModifier.size(16.dp)
+                        )
+                        Spacer(GlanceModifier.width(6.dp))
+                        Text(
+                            "Crash mode",
+                            style = TextStyle(color = ColorProvider(WNightInk), fontSize = 14.sp)
+                        )
+                    }
                 }
             }
         }

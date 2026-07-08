@@ -23,10 +23,14 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import com.mazlabz.akari.DaySummary
 import com.mazlabz.akari.LoadState
+import com.mazlabz.akari.ui.components.CardTitle
 import com.mazlabz.akari.ui.components.SectionCard
 import com.mazlabz.akari.ui.components.SectionLabel
 import com.mazlabz.akari.ui.theme.Washi
@@ -92,7 +96,7 @@ fun TrendsScreen(
                     "Total ${load.total}% · your usual 3-day load is about ${load.baseline.toInt()}%" +
                         if (load.spiking) " — running high, plan extra rest" else "",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (load.spiking) Washi.Persimmon else Washi.InkFaded
+                    color = if (load.spiking) Washi.PersimmonText else Washi.InkFaded
                 )
             }
         }
@@ -131,7 +135,13 @@ fun TrendsScreen(
         }
 
         SectionCard {
-            SectionLabel("Most frequent symptoms · 30 days")
+            CardTitle("Most frequent symptoms")
+            Text(
+                "Last 30 days",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+            )
             if (symptomFreq.isEmpty()) {
                 Text("No symptoms logged yet.", style = MaterialTheme.typography.bodyMedium, color = Washi.InkFaded)
             } else {
@@ -192,24 +202,56 @@ private fun LegendDot(color: androidx.compose.ui.graphics.Color) {
 
 @Composable
 private fun TrendChart(trend: List<DaySummary>) {
+    val gridColor = Washi.Line
+    val moss = Washi.Moss
+    val used = Washi.Persimmon.copy(alpha = 0.7f)
+    val crash = Washi.Night
+    val fadedArgb = Washi.InkFaded.toArgb()
+    val inkArgb = Washi.Ink.toArgb()
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
+            .height(172.dp)
     ) {
         if (trend.isEmpty()) return@Canvas
         val w = size.width
         val h = size.height
-        val bottom = h - 14f
-        val usable = bottom - 8f
+        val labelH = 16f
+        val bottom = h - labelH - 4f
+        val usable = bottom - 6f
         val slot = w / trend.size
+        val todayIdx = trend.lastIndex
+
+        // soft band marking today
+        drawRect(
+            color = gridColor,
+            topLeft = Offset(todayIdx * slot, 0f),
+            size = Size(slot, bottom + labelH)
+        )
+
+        // faint baseline / 50% / 100% gridlines
+        listOf(0f, 0.5f, 1f).forEach { frac ->
+            val y = bottom - usable * frac
+            drawLine(gridColor, Offset(0f, y), Offset(w, y), strokeWidth = 1f)
+        }
+
+        val labelPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = 10.sp.toPx()
+            color = fadedArgb
+        }
+        val todayPaint = android.graphics.Paint(labelPaint).apply {
+            color = inkArgb
+            isFakeBoldText = true
+        }
 
         trend.forEachIndexed { i, d ->
             val x = i * slot
             d.battery?.let { b ->
                 val bh = usable * (b / 100f)
                 drawRoundRect(
-                    color = Washi.Moss,
+                    color = moss,
                     topLeft = Offset(x + slot * 0.14f, bottom - bh),
                     size = Size(slot * 0.30f, bh),
                     cornerRadius = CornerRadius(6f, 6f)
@@ -218,7 +260,7 @@ private fun TrendChart(trend: List<DaySummary>) {
             if (d.spent > 0) {
                 val sh = usable * (d.spent.coerceAtMost(100) / 100f)
                 drawRoundRect(
-                    color = Washi.Persimmon.copy(alpha = 0.7f),
+                    color = used,
                     topLeft = Offset(x + slot * 0.52f, bottom - sh),
                     size = Size(slot * 0.30f, sh),
                     cornerRadius = CornerRadius(6f, 6f)
@@ -226,11 +268,20 @@ private fun TrendChart(trend: List<DaySummary>) {
             }
             if (d.pem) {
                 drawCircle(
-                    color = Washi.Night,
-                    radius = 8f,
-                    center = Offset(x + slot / 2f, h - 4f)
+                    color = crash,
+                    radius = 4f,
+                    center = Offset(x + slot / 2f, bottom - usable - 1f)
                 )
             }
+            val letter = d.date.dayOfWeek.getDisplayName(
+                java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                letter,
+                x + slot / 2f,
+                h - 4f,
+                if (i == todayIdx) todayPaint else labelPaint
+            )
         }
     }
 }

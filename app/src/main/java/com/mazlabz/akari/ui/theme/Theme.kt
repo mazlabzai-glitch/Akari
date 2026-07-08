@@ -43,9 +43,26 @@ object Washi {
     val NightInk = Color(0xFFCFC9BE)
     val NightCard = Color(0xFF24221E)
     val Ember = Color(0xFF8A5A3B)
+
+    // Readable text-grade accents: deep on the day palette, brightened for night,
+    // so accent-coloured text and filled accent buttons meet WCAG AA in both modes.
+    val MossText: Color get() = if (night) Color(0xFF9DBE97) else Color(0xFF4C6746)
+    val AmberText: Color get() = if (night) Color(0xFFE3B968) else Color(0xFF875510)
+    val PersimmonText: Color get() = if (night) Color(0xFFDD9C82) else Color(0xFF9C4526)
+
+    // Pale tint fills behind chips and labels, in their accent hue.
+    val MossTint: Color get() = if (night) Color(0xFF26302A) else Color(0xFFE7EEE3)
+    val AmberTint: Color get() = if (night) Color(0xFF322A1A) else Color(0xFFF6E9D2)
+    val PersimmonTint: Color get() = if (night) Color(0xFF33241E) else Color(0xFFF5E2D8)
 }
 
 private val AkariType = Typography(
+    displaySmall = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 40.sp,
+        lineHeight = 44.sp
+    ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.SemiBold,
@@ -77,6 +94,15 @@ private val AkariShapes = Shapes(
     medium = RoundedCornerShape(18.dp),
     large = RoundedCornerShape(26.dp)
 )
+
+/** One spacing scale, for consistent vertical rhythm across screens. */
+object Space {
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+}
 
 @Composable
 fun AkariTheme(content: @Composable () -> Unit) {

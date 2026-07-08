@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -30,8 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.mazlabz.akari.GuideTopic
@@ -43,12 +50,15 @@ import com.mazlabz.akari.TodayState
 import com.mazlabz.akari.data.Entry
 import com.mazlabz.akari.data.Settings
 import com.mazlabz.akari.health.HealthSnapshot
+import com.mazlabz.akari.ui.components.AkariIcons
+import com.mazlabz.akari.ui.components.CardTitle
 import com.mazlabz.akari.ui.components.GentleButton
 import com.mazlabz.akari.ui.components.InfoDot
 import com.mazlabz.akari.ui.components.InfoSheet
 import com.mazlabz.akari.ui.components.Lantern
 import com.mazlabz.akari.ui.components.SectionCard
 import com.mazlabz.akari.ui.components.SectionLabel
+import com.mazlabz.akari.ui.components.ZoneChip
 import com.mazlabz.akari.ui.theme.Washi
 import java.time.Instant
 import java.time.LocalDate
@@ -57,15 +67,15 @@ import java.time.format.DateTimeFormatter
 
 private val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
 
-private fun entryIcon(type: String) = when (type) {
-    "checkin" -> "🏮"
-    "activity" -> "⚡"
-    "rest" -> "🍃"
-    "symptom" -> "🌡"
-    "food" -> "🍵"
-    "vitals" -> "💓"
-    "pem" -> "🌙"
-    else -> "•"
+private fun entryVector(type: String): ImageVector = when (type) {
+    "checkin" -> AkariIcons.Checkin
+    "activity" -> AkariIcons.Activity
+    "rest" -> AkariIcons.Rest
+    "symptom" -> AkariIcons.Symptom
+    "food" -> AkariIcons.Food
+    "vitals" -> AkariIcons.Vitals
+    "pem" -> AkariIcons.Pem
+    else -> AkariIcons.Activity
 }
 
 private fun describe(e: Entry): String = when (e.type) {
@@ -137,19 +147,18 @@ fun TodayScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Lantern(level = today.fraction, breathe = !settings.reduceMotion)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${today.remaining}%", style = MaterialTheme.typography.headlineMedium)
+                        Text(
+                            buildAnnotatedString {
+                                append("${today.remaining}")
+                                withStyle(SpanStyle(fontSize = 22.sp)) { append("%") }
+                            },
+                            style = MaterialTheme.typography.displaySmall
+                        )
                         InfoDot { info = PacingGuide.ZONES }
                     }
                     val zone = PacingGuide.zoneLabel(today.fraction)
-                    Text(
-                        zone,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = when (zone) {
-                            "Steady" -> Washi.Moss
-                            "Getting low" -> Washi.Amber
-                            else -> Washi.Persimmon
-                        }
-                    )
+                    Spacer(Modifier.height(4.dp))
+                    ZoneChip(zone)
                     Spacer(Modifier.height(4.dp))
                     // Guidance strip: always answers "what should I do now?"
                     Text(
@@ -177,7 +186,7 @@ fun TodayScreen(
                                 else
                                     "Heart-rate ceiling: $ceiling bpm — above it, stop and rest",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (over) Washi.Persimmon else Washi.InkFaded,
+                                color = if (over) Washi.PersimmonText else Washi.InkFaded,
                                 modifier = Modifier.weight(1f)
                             )
                             InfoDot { info = PacingGuide.HEART_RATE }
@@ -190,12 +199,19 @@ fun TodayScreen(
         if (load.spiking) {
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🌫", modifier = Modifier.width(32.dp))
+                    Box(modifier = Modifier.width(32.dp)) {
+                        Icon(
+                            AkariIcons.Caution,
+                            contentDescription = null,
+                            tint = Washi.PersimmonText,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
                         Text(
                             "Delayed-load caution",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Washi.Persimmon
+                            color = Washi.PersimmonText
                         )
                         Text(
                             "The last 3 days carried more than usual (${load.total}% spent). " +
@@ -212,7 +228,8 @@ fun TodayScreen(
         health?.let { h ->
             if (h.error == null && (h.steps != null || h.sleepMinutes != null || h.restingHr != null)) {
                 SectionCard {
-                    SectionLabel("From her wearable")
+                    CardTitle("From her wearable")
+                    Spacer(Modifier.height(8.dp))
                     val parts = listOfNotNull(
                         h.steps?.let { "$it steps" },
                         h.sleepMinutes?.let { "${it / 60}h ${it % 60}m sleep" },
@@ -226,7 +243,7 @@ fun TodayScreen(
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Log an activity", style = MaterialTheme.typography.titleMedium)
+                    CardTitle("Log an activity")
                     Text(
                         "each one spends some of today's light",
                         style = MaterialTheme.typography.bodyMedium,
@@ -265,7 +282,8 @@ fun TodayScreen(
         }
 
         SectionCard {
-            SectionLabel("Quick log")
+            CardTitle("Quick log")
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GentleButton(
                     "Rest", subText = "rest is an action",
@@ -300,7 +318,7 @@ fun TodayScreen(
                     "I'm crashing (PEM)",
                     subText = "one tap now helps find your triggers",
                     modifier = Modifier.weight(1f),
-                    accent = Washi.Persimmon,
+                    accent = Washi.PersimmonText,
                     onClick = { vm.add(Entry(type = "pem")) }
                 )
                 InfoDot { info = PacingGuide.PEM }
@@ -322,7 +340,13 @@ fun TodayScreen(
         }
 
         SectionCard {
-            SectionLabel("Today's diary · tap an entry to fix time or cost")
+            CardTitle("Today's diary")
+            Text(
+                "Tap an entry to fix its time or cost.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Washi.InkFaded,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+            )
             if (today.entries.isEmpty()) {
                 Text(
                     "Nothing logged yet. A quiet page is fine.",
@@ -338,7 +362,14 @@ fun TodayScreen(
                             .padding(vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(entryIcon(e.type), modifier = Modifier.width(32.dp))
+                        Box(modifier = Modifier.width(32.dp)) {
+                            Icon(
+                                entryVector(e.type),
+                                contentDescription = null,
+                                tint = Washi.InkFaded,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(describe(e), style = MaterialTheme.typography.bodyMedium)
                             Text(
@@ -360,7 +391,7 @@ fun TodayScreen(
             GentleButton(
                 "Crash mode — big buttons, low light",
                 modifier = Modifier.fillMaxWidth(),
-                accent = Washi.Night,
+                accent = Washi.Ink,
                 filled = true,
                 onClick = onEnterCrashMode
             )
@@ -428,11 +459,11 @@ private fun CheckinCard(onInfo: () -> Unit, onSave: (Int, Int?) -> Unit) {
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GentleButton("Low", subText = "rough day", modifier = Modifier.weight(1f),
-                accent = Washi.Persimmon, filled = battery == 30, onClick = { battery = 30 })
+                accent = Washi.PersimmonText, filled = battery == 30, onClick = { battery = 30 })
             GentleButton("So-so", subText = "middling", modifier = Modifier.weight(1f),
-                accent = Washi.Amber, filled = battery == 55, onClick = { battery = 55 })
+                accent = Washi.AmberText, filled = battery == 55, onClick = { battery = 55 })
             GentleButton("Okay", subText = "gentler day", modifier = Modifier.weight(1f),
-                accent = Washi.Moss, filled = battery == 80, onClick = { battery = 80 })
+                accent = Washi.MossText, filled = battery == 80, onClick = { battery = 80 })
         }
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -669,7 +700,7 @@ private fun EditEntrySheet(
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GentleButton("Delete", Modifier.weight(1f), accent = Washi.Persimmon, onClick = onDelete)
+                GentleButton("Delete", Modifier.weight(1f), accent = Washi.PersimmonText, onClick = onDelete)
                 GentleButton("Save", Modifier.weight(1f), filled = true, onClick = {
                     onSave(
                         if (entry.type == "activity") entry.copy(ts = ts, cost = cost, kind = kind)

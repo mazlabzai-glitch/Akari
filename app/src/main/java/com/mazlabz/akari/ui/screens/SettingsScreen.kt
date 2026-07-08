@@ -184,7 +184,7 @@ fun SettingsScreen(
             GentleButton(
                 "Erase all data",
                 Modifier.fillMaxWidth(),
-                accent = Washi.Persimmon,
+                accent = Washi.PersimmonText,
                 onClick = { confirmErase = true }
             )
         }
@@ -207,7 +207,7 @@ fun SettingsScreen(
             text = { Text("This can't be undone. Consider a JSON backup first.") },
             confirmButton = {
                 TextButton(onClick = { confirmErase = false; onErase() }) {
-                    Text("Erase", color = Washi.Persimmon)
+                    Text("Erase", color = Washi.PersimmonText)
                 }
             },
             dismissButton = {
